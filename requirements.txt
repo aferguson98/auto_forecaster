@@ -1,0 +1,3 @@
+iris~=2.4.0
+boto3~=1.16.23
+onedrivesdk~=2.0
