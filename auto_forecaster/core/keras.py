@@ -1,166 +1,157 @@
+from datetime import datetime
+import os
+import sys
+
+from joblib import Parallel, delayed
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.python.keras.callbacks import ModelCheckpoint, EarlyStopping
 
-from auto_forecaster.forecasting.ForecastPoint import ForecastPoint
-from auto_forecaster.forecasting.ForecastRegion import ForecastRegion
-
-east_anglia = ForecastRegion("E England", 0,
-                             [ForecastPoint("Wittering", 63),
-                              ForecastPoint("Marham", 65),
-                              ForecastPoint("Weybourne", 66),
-                              ForecastPoint("Bedford", 75),
-                              ForecastPoint("Wattisham", 76),
-                              ForecastPoint("Andrewsfield", 85)])
-
-east_midlands = ForecastRegion("E Midlands", 1,
-                               [ForecastPoint("Nottingham", 53),
-                                ForecastPoint("Scampton", 54),
-                                ForecastPoint("Waddington", 55),
-                                ForecastPoint("Cranwell", 56),
-                                ForecastPoint("Coningsby", 58),
-                                ForecastPoint("Wainfleet", 59),
-                                ForecastPoint("Fleet Haven", 64)])
-
-london = ForecastRegion("London and SE England", 2,
-                        [ForecastPoint("Benson", 82),
-                         ForecastPoint("High Wycombe", 83),
-                         ForecastPoint("Northolt", 84),
-                         ForecastPoint("Great Wakering", 86),
-                         ForecastPoint("Middle Wallop", 92),
-                         ForecastPoint("Odiham", 93),
-                         ForecastPoint("Farnborough", 94),
-                         ForecastPoint("Gatwick", 95),
-                         ForecastPoint("Heathrow", 96),
-                         ForecastPoint("Manston", 98),
-                         ForecastPoint("Thorney Island", 109),
-                         ForecastPoint("Klin Wood", 110)])
-
-north_east = ForecastRegion("NE England", 3,
-                            [ForecastPoint("Rochester", 37),
-                             ForecastPoint("Ouston", 38),
-                             ForecastPoint("Boulmer", 39)])
-
-yorks_humber = ForecastRegion("Yorks and Humber", 4,
-                              [ForecastPoint("Leeming", 40),
-                               ForecastPoint("Topcliffe", 41),
-                               ForecastPoint("Linton-on-Ouse", 40),
-                               ForecastPoint("Loftus", 43),
-                               ForecastPoint("Leeds/Bradford", 51),
-                               ForecastPoint("Leconfield", 57)])
-
-north_west = ForecastRegion("NW England", 5,
-                            [ForecastPoint("Whitehaven", 31),
-                             ForecastPoint("Keswick", 32),
-                             ForecastPoint("Spadeadam", 34),
-                             ForecastPoint("Wickersgill", 35),
-                             ForecastPoint("Warcop", 36),
-                             ForecastPoint("Altcar", 48),
-                             ForecastPoint("Manchester", 52)])
-
-south_west = ForecastRegion("SW England", 6,
-                            [ForecastPoint("Filton/Bristol", 79),
-                             ForecastPoint("Little Rissington", 80),
-                             ForecastPoint("Brize Norton", 81),
-                             ForecastPoint("Chivenor", 87),
-                             ForecastPoint("Winsford", 88),
-                             ForecastPoint("Larkhill", 90),
-                             ForecastPoint("Boscombe Down", 91),
-                             ForecastPoint("St. Mary's/Isles of Scilly", 99),
-                             ForecastPoint("Kehelland", 100),
-                             ForecastPoint("Culdrose", 101),
-                             ForecastPoint("Bodmin", 102),
-                             ForecastPoint("Plymouth", 103),
-                             ForecastPoint("Dunkeswell", 104),
-                             ForecastPoint("Exeter", 105),
-                             ForecastPoint("Yeovilton", 106),
-                             ForecastPoint("Portland", 107),
-                             ForecastPoint("Bournemouth", 108),
-                             ForecastPoint("Guernsey", 111),
-                             ForecastPoint("Jersey", 112)])
-
-west_midlands = ForecastRegion("W Midlands", 7,
-                               [ForecastPoint("Shawbury", 62),
-                                ForecastPoint("Shobdon", 70),
-                                ForecastPoint("Hereford", 71),
-                                ForecastPoint("Throckmorton", 72),
-                                ForecastPoint("Birmingham", 73),
-                                ForecastPoint("Coventry", 74)])
-
-wales = ForecastRegion("Wales", 8,
-                       [ForecastPoint("Mona", 44),
-                        ForecastPoint("Valley/Anglesey", 45),
-                        ForecastPoint("Snowdonia", 46),
-                        ForecastPoint("Bodelwyddan", 47),
-                        ForecastPoint("Uwchmynydd", 60),
-                        ForecastPoint("Llanwyddyn", 61),
-                        ForecastPoint("Aberporth", 67),
-                        ForecastPoint("Llanafan", 68),
-                        ForecastPoint("Tirabad", 69),
-                        ForecastPoint("Milford Haven", 77),
-                        ForecastPoint("Pembrey", 78),
-                        ForecastPoint("St. Athan", 89)])
-
-tayside = ForecastRegion("Tayside Central and Fife", 9,
-                         [ForecastPoint("Strathallan", 23),
-                          ForecastPoint("Leuchars", 29)])
-
-strathclyde = ForecastRegion("Strathclyde", 10,
-                             [ForecastPoint("Tiree", 17),
-                              ForecastPoint("Islay", 18),
-                              ForecastPoint("Campbeltown", 19),
-                              ForecastPoint("Bishopton", 21),
-                              ForecastPoint("Prestwick/Glasgow", 22),
-                              ForecastPoint("Lanark", 25)])
-
-orkney_shetland = ForecastRegion("Orkney and Shetland", 11,
-                                 [ForecastPoint("Baltasound", 0),
-                                  ForecastPoint("Tingwall", 1),
-                                  ForecastPoint("Kirkwall", 2)])
-
-northern_ireland = ForecastRegion("N Ireland", 12,
-                                  [ForecastPoint("Killyhevlin", 113),
-                                   ForecastPoint("Castlederg", 114),
-                                   ForecastPoint("Magilligan", 115),
-                                   ForecastPoint("Lough Fea", 116),
-                                   ForecastPoint("Portglenone", 117),
-                                   ForecastPoint("Ballypatrick", 118),
-                                   ForecastPoint("Aldergrove/Belfast", 119),
-                                   ForecastPoint("Glenanne", 120)])
-
-highland = ForecastRegion("Highland and Eilean Siar", 13,
-                          [ForecastPoint("Geirinis", 3),
-                           ForecastPoint("Stornoway", 4),
-                           ForecastPoint("Lochdrum", 5),
-                           ForecastPoint("Mellon Charles", 6),
-                           ForecastPoint("Altnaharra", 7),
-                           ForecastPoint("Fersit", 8),
-                           ForecastPoint("Balnagall", 9),
-                           ForecastPoint("Aviemore", 10),
-                           ForecastPoint("Wick", 13)])
-
-grampian = ForecastRegion("Grampian", 14,
-                          [ForecastPoint("Kinloss", 11),
-                           ForecastPoint("Lossiemouth", 12),
-                           ForecastPoint("Aboyne", 14),
-                           ForecastPoint("Inverbervie", 15),
-                           ForecastPoint("Aberdeen", 16)])
-
-dumfries = ForecastRegion("Dumfries Galloway Lothian Borders", 15,
-                          [ForecastPoint("West Freugh", 20),
-                           ForecastPoint("Kirkcudbright", 24),
-                           ForecastPoint("Charterhall", 26),
-                           ForecastPoint("Fingland", 27),
-                           ForecastPoint("Edinburgh", 28)])
-
-regions = [east_anglia, east_midlands, london, north_east, yorks_humber,
-           north_west, south_west, west_midlands, wales, tayside, strathclyde,
-           orkney_shetland, northern_ireland, highland, grampian, dumfries]
+import auto_forecaster.core
+from auto_forecaster.core import regions
 
 
-def start_process():
-    for region in regions:
-        region.process_data()
+if not sys.warnoptions:
+    import warnings
+    warnings.simplefilter("ignore")
+
+
+regions = regions.get_regions_with_tokeniser()
+
+
+"""def loss_function(y_true, y_pred):
+    ""
+    A custom loss function for the model
+        * 60% of the score is the number of words that are incorrect
+        * 40% of the score is the number of words in the incorrect order
+
+    ""
+    y_true_np = y_true
+    y_pred_np = y_pred
+    scores = []
+
+    for i in range(len(y_true_np)):
+        this_y_true = list(y_true_np[i])
+        this_y_pred = list(y_pred_np[i])
+        score = 0
+        scores_j = []
+        for j in range(len(this_y_true)):
+            if this_y_true[j] != this_y_pred[j]:
+                score += 0.4
+                diff = abs(this_y_true.count(this_y_true[j]) -
+                           this_y_pred.count(this_y_pred[j]))
+                score += (0.6 * diff)
+            tf.multiply(y_true[])
+        scores.append(scores_j)
+    scored = tf.multiply(y_true, scores)
+    print(tf.reduce_mean(scored, axis=-1))
+    tf.reduce_mean(scored, axis=-1)
+    return tf.reduce_mean(scored, axis=-1)"""
+
+
+def parallel_processing(region_idx):
+    regions[region_idx].process_data()
+
+
+def start_process(load_data=True, model_type="cnn"):
+    """
+
+    Parameters
+    ----------
+    load_data: bool
+        Whether to load data or use the numpy save file
+        * false - load data from numpy save file
+        * true  - load data from NetCDF file
+
+    model_type: str
+        The type of model to create
+        * cnn - generate a Convolutional Neural Network
+        * dnn - generate a Deep Neural Network (Feed-forward network)
+
+    Returns
+    -------
+
+    """
+    """with open('../../logo_bbs.ans', 'r') as f:
+        for line in f.readlines():
+            print(line, end="")
+            sleep(0.1)
+    print("\n\tAutoCaster - a third year project by Alexander "
+          "Ferguson at the University of East Anglia (UEA)"
+          "\n\tData supplied by the Met Office "
+          "© Crown copyright 2021, the Met Office\n\n\t"
+          "NOTE: when loading file counts may decrease as file discovery "
+          "traverses directories")"""
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(base_dir, "..", "..", "data")
+    input_data_dir = os.path.join(data_dir, 'input_data.npy')
+    output_data_dir = os.path.join(data_dir, 'output_data.npy')
+
+    if load_data:
+        # open a log file for session
+        with open('../../log.log', 'w') as f:
+            f.write("LOG FILE " + datetime.now().strftime("%Y/%m/%d:%H:%M"))
+
+        loader = auto_forecaster.core.FileLoader(0, 0)
+        for i in range(len(regions)):
+            regions[i].calc_total_files(None)
+            regions[i].set_loader(loader)
+            regions[i].loader.adjust(total=regions[i].total_files)
+
+        Parallel(n_jobs=16, require='sharedmem')(
+            delayed(parallel_processing)(i) for i in range(len(regions)))
+
+        input_data = np.array([region.data[data]['input']
+                               for region in regions for data in region.data])
+
+        output_data = np.asarray([region.data[data]['output']
+                                 for region in regions for data in region.data]
+                                )
+        with open(input_data_dir, 'wb') as f:
+            np.save(f, input_data)
+        with open(output_data_dir, 'wb') as f:
+            np.save(f, output_data)
+    else:
+        with open(input_data_dir, 'rb') as f:
+            input_data = np.load(f)
+        with open(output_data_dir, 'rb') as f:
+            output_data = np.load(f)
+
+    max_shape = max([output.shape for output in output_data])
+    for o in range(len(output_data)):
+        pad_width = max_shape[1] - output_data[o].shape[0]
+        output_data[o] = np.pad(output_data[o], (0, pad_width), 'constant',
+                                constant_values=-1)
+
+    """input_data_concat = []
+    for i in input_data:
+        input_data_concat.append(i.flatten())
+    input_data_concat = np.array(input_data_concat)"""
+    inputs = keras.layers.Conv2D(8, 3, input_shape=input_data[0].shape,
+                                 padding='same')
+
+    normalizer = keras.layers.experimental.preprocessing.Normalization(
+        input_shape=input_data.shape)
+    normalizer.adapt(input_data)
+
+    outputs = keras.layers.Dense(max_shape[1],
+                                 name="forecast_text_vector", dtype=int32)
+
+    es = EarlyStopping(monitor='accuracy', mode='max', patience=100)
+    mc = ModelCheckpoint('../../models/model_a_dnn_best.h5',
+                         monitor='accuracy', mode='max', save_best_only=True)
+    model = keras.models.Sequential([inputs, keras.layers.Flatten(),
+                                     outputs])
+    model.summary()
+    model.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
+    model.fit(input_data,
+              np.asarray([region.data[data]['output']
+                          for region in regions for data in region.data]
+                         ),
+              batch_size=32, epochs=10000, validation_split=0.2, callbacks=[mc])
+    model.save('../../models/model_a_dnn.h5')
 
 
 if __name__ == '__main__':

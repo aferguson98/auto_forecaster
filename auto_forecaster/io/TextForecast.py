@@ -15,7 +15,7 @@ def open_file(file_location):
                        "the file exists and try again.")
         raise FileNotFoundError(err_message.format(file_location))
     with open(file_location) as forecast_file:
-        forecast_lines = forecast_file.readlines()
+        forecast_lines = forecast_file.read().splitlines()
 
     if forecast_lines:
         text_forecast = ""
@@ -29,13 +29,24 @@ def open_file(file_location):
     raise ValueError(err_message.format(file_location))
 
 
-def get_files_from_region(region):
+def open_files_from_glob_as_str(file_glob="*.txt"):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(base_dir, "..", "..", "data", "text")
+    file_locations = os.path.join(data_dir, file_glob)
+    result_str = ""
+    for f in glob.glob(file_locations):
+        result_str += " " + open_file(f)
+    return result_str.strip()
+
+
+def get_files_from_region(region, mode="train"):
     """
     Function to get all regional forecast file locations and their corresponding
     dates and times
 
     Parameters
     ----------
+    mode
     region: ForecastRegion
         The region to find the text forecast file locations for
 
@@ -45,9 +56,15 @@ def get_files_from_region(region):
         dictionary in format {datetime: file location, ...}
     """
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(base_dir, "..", "..", "data", "text")
-    file_locations = os.path.join(data_dir, "*" + region.name + ".txt")
+    if mode == "train":
+        data_dir = os.path.join(base_dir, "..", "..", "data", "text")
+    elif mode == "test":
+        data_dir = os.path.join(base_dir, "..", "..", "data", "test")
+    else:
+        data_dir = ""
+    file_locations = os.path.join(data_dir, "* " + region.name + ".txt")
     results = {}
+
     for f in glob.glob(file_locations):
         file_name = " ".join(os.path.basename(f).split(" ")[:2])
         date_time = datetime.strptime(file_name, '%Y-%m-%d %H%M')
